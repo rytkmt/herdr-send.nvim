@@ -1,13 +1,14 @@
-# herdr-context-sender.nvim
+# herdr-send.nvim
 
-同一 [herdr](https://herdr.dev) ワークスペース内の AI エージェントに、Neovim からコンテキストを送信するプラグイン。
+同一 [herdr](https://herdr.dev) ワークスペース内の AI エージェントに、Neovim からファイル参照やプロンプトを送信するプラグイン。
 
 ## 機能
 
-- ビジュアル選択テキストをエージェントのプロンプトに送信
-- バッファ全体をエージェントのプロンプトに送信
-- 自由入力プロンプトを `vim.ui.input` 経由で送信
+- ビジュアル選択範囲のファイル参照（`@path#L1-5`）をエージェントのプロンプト欄に入力
+- バッファのファイル参照（`@path`）をエージェントのプロンプト欄に入力
+- 自由入力プロンプトをエージェントにサブミット
 - エージェントが1つなら自動選択、複数あれば `vim.ui.select` で選択
+- エージェントが存在しなければ自動でペイン分割して起動
 
 ## 要件
 
@@ -21,9 +22,9 @@
 
 ```lua
 {
-  "rytkmt/herdr-context-sender.nvim",
+  "rytkmt/herdr-send.nvim",
   config = function()
-    require("herdr-context-sender").setup()
+    require("herdr-send").setup()
   end,
 }
 ```
@@ -31,21 +32,22 @@
 ## 設定
 
 ```lua
-require("herdr-context-sender").setup({
-  -- 送信時にプロンプトへ付加するプレフィックス（デフォルト: ""）
-  prefix = "",
-  -- 選択/バッファ送信時にファイルパスを含めるか（デフォルト: true）
-  include_filepath = true,
+require("herdr-send").setup({
+  agent_cmd = "claude",       -- 起動するエージェント (デフォルト: "claude")
+  split_direction = "right",  -- 分割方向: "right" or "down" (デフォルト: "right")
+  split_ratio = 0.5,          -- 分割比率 (デフォルト: 0.5)
 })
 ```
 
 ## コマンド
 
-| コマンド | モード | 説明 |
+| コマンド | モード | 動作 |
 |---------|--------|------|
-| `:HerdrSendSelection` | Visual | 選択テキストをエージェントに送信 |
-| `:HerdrSendBuffer` | Normal | バッファ全体をエージェントに送信 |
-| `:HerdrSendPrompt` | Normal | 自由入力プロンプトをエージェントに送信 |
+| `:HerdrSendSelection` | Visual | `@path#L1-5` をプロンプト欄に入力（サブミットなし、フォーカス移動） |
+| `:HerdrSendBuffer` | Normal | `@path` をプロンプト欄に入力（サブミットなし、フォーカス移動） |
+| `:HerdrSendPrompt` | Normal | 自由入力プロンプトをサブミット（フォーカス移動なし） |
+
+エージェントが同一ワークスペースに存在しない場合、自動でペインを分割してエージェントを起動し、ready後に送信する。
 
 ## キーマップ例
 
@@ -59,8 +61,10 @@ vim.keymap.set("n", "<leader>hp", "<cmd>HerdrSendPrompt<cr>", { desc = "Send pro
 
 1. 環境変数 `$HERDR_WORKSPACE_ID` で現在のワークスペースを特定
 2. `herdr agent list` を実行し、同一ワークスペース内のエージェントをフィルタ（Nvim自身のペインは除外）
-3. エージェントが1つなら直接送信、複数ならピッカーで選択
-4. `herdr agent prompt <pane_id> <text>` でプロンプトを送信
+3. エージェントが0件なら `herdr pane split` + `herdr agent start` で自動起動し、`herdr agent wait --until idle` でready待機
+4. エージェントが1つなら直接送信、複数ならピッカーで選択
+5. Selection/Buffer: `herdr pane send-text` でプロンプト欄にテキスト入力（末尾スペース付き）+ フォーカス移動
+6. Prompt: `herdr agent prompt` でサブミット
 
 ## ライセンス
 

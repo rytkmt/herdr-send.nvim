@@ -1,8 +1,9 @@
 local M = {}
 
 M.defaults = {
-  prefix = "",
-  include_filepath = true,
+  agent_cmd = "claude",
+  split_direction = "right",
+  split_ratio = 0.5,
 }
 
 M.options = {}
