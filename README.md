@@ -70,7 +70,7 @@ vim.keymap.set("n", "<leader>hp", "<cmd>HerdrSendPrompt<cr>", { desc = "Send pro
 
 1. 環境変数 `$HERDR_WORKSPACE_ID` で現在のワークスペースを特定
 2. `herdr agent list` を実行し、同一ワークスペース内のエージェントをフィルタ（Nvim自身のペインは除外）
-3. エージェントが0件なら `herdr pane split` + `herdr agent start` で自動起動し、`herdr agent wait --until idle` でready待機
+3. エージェントが0件なら `herdr pane split` + `herdr agent start` で自動起動（startコマンドがready待機を内包）
 4. エージェントが1つなら直接送信、複数ならピッカーで選択
 5. Selection/Buffer: `herdr pane send-text` でプロンプト欄にテキスト入力（末尾スペース付き）+ フォーカス移動
 6. Prompt: `herdr agent prompt` でサブミット

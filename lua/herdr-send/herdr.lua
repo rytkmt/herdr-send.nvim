@@ -93,12 +93,12 @@ function M.start_agent(opts, callback)
       end
 
       local ok, parsed = pcall(vim.json.decode, output)
-      if not ok or not parsed.result or not parsed.result.pane_id then
+      if not ok or not parsed.result or not parsed.result.pane or not parsed.result.pane.pane_id then
         vim.notify("[herdr-send] Failed to parse split result", vim.log.levels.ERROR)
         return
       end
 
-      local new_pane_id = parsed.result.pane_id
+      local new_pane_id = parsed.result.pane.pane_id
 
       vim.fn.jobstart({ "herdr", "agent", "start", opts.agent_cmd, "--kind", opts.agent_cmd, "--pane", new_pane_id }, {
         on_exit = function(_, start_exit_code)
@@ -106,16 +106,7 @@ function M.start_agent(opts, callback)
             vim.notify("[herdr-send] Failed to start agent (exit code: " .. start_exit_code .. ")", vim.log.levels.ERROR)
             return
           end
-
-          vim.fn.jobstart({ "herdr", "agent", "wait", new_pane_id, "--until", "idle", "--timeout", "60000" }, {
-            on_exit = function(_, wait_exit_code)
-              if wait_exit_code ~= 0 then
-                vim.notify("[herdr-send] Agent did not become ready", vim.log.levels.ERROR)
-                return
-              end
-              callback({ pane_id = new_pane_id })
-            end,
-          })
+          callback({ pane_id = new_pane_id })
         end,
       })
     end,
