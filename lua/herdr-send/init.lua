@@ -19,6 +19,16 @@ local function get_relative_path()
   return filepath
 end
 
+local at_prefix_agents = { claude = true, gemini = true }
+
+local function format_file_ref(rel_path, line_spec)
+  local prefix = at_prefix_agents[config.options.agent_cmd] and "@" or ""
+  if line_spec then
+    return prefix .. rel_path .. "#L" .. line_spec
+  end
+  return prefix .. rel_path
+end
+
 local function resolve_agent_and_run(send_fn)
   herdr.get_workspace_agents(function(agents)
     vim.schedule(function()
@@ -61,12 +71,13 @@ function M.send_selection()
   local start_line = vim.fn.getpos("'<")[2]
   local end_line = vim.fn.getpos("'>")[2]
 
-  local ref
+  local line_spec
   if start_line == end_line then
-    ref = "@" .. rel_path .. "#L" .. start_line
+    line_spec = tostring(start_line)
   else
-    ref = "@" .. rel_path .. "#L" .. start_line .. "-" .. end_line
+    line_spec = start_line .. "-" .. end_line
   end
+  local ref = format_file_ref(rel_path, line_spec)
 
   resolve_agent_and_run(function(agent)
     herdr.send_text(agent.pane_id, ref)
@@ -81,7 +92,7 @@ function M.send_buffer()
   end
 
   resolve_agent_and_run(function(agent)
-    herdr.send_text(agent.pane_id, "@" .. rel_path)
+    herdr.send_text(agent.pane_id, format_file_ref(rel_path))
   end)
 end
 
