@@ -106,7 +106,7 @@ function M.start_agent(opts, callback)
             vim.notify("[herdr-send] Failed to start agent (exit code: " .. start_exit_code .. ")", vim.log.levels.ERROR)
             return
           end
-          callback({ pane_id = new_pane_id })
+          callback({ pane_id = new_pane_id, agent = opts.agent_cmd })
         end,
       })
     end,

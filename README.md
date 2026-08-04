@@ -47,11 +47,20 @@
 
 ```lua
 require("herdr-send").setup({
-  agent_cmd = "claude",       -- 起動するエージェント (デフォルト: "claude")
+  agent_cmd = "claude",       -- エージェントのCLIコマンド名 (デフォルト: "claude")
   split_direction = "right",  -- 分割方向: "right" or "down" (デフォルト: "right")
   split_ratio = 0.5,          -- 分割比率 (デフォルト: 0.5)
 })
 ```
+
+### agent_cmd
+
+エージェントのCLIコマンド名を指定する。以下の2つの役割を持つ:
+
+1. **エージェント自動起動時のコマンド** — ワークスペースにエージェントが存在しない場合、この値で `herdr agent start` を実行する
+2. **ファイル参照フォーマットの決定** — `"claude"` / `"gemini"` の場合は `@` プレフィックス付き（例: `@path#L1-5`）、それ以外は `@` なし（例: `path#L1-5`）で送信する
+
+指定可能な値の例: `"claude"`, `"gemini"`, `"kiro"`, `"codex"` など
 
 ## コマンド
 

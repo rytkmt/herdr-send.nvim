@@ -21,8 +21,8 @@ end
 
 local at_prefix_agents = { claude = true, gemini = true }
 
-local function format_file_ref(rel_path, line_spec)
-  local prefix = at_prefix_agents[config.options.agent_cmd] and "@" or ""
+local function format_file_ref(agent_name, rel_path, line_spec)
+  local prefix = at_prefix_agents[agent_name] and "@" or ""
   if line_spec then
     return prefix .. rel_path .. "#L" .. line_spec
   end
@@ -77,9 +77,8 @@ function M.send_selection()
   else
     line_spec = start_line .. "-" .. end_line
   end
-  local ref = format_file_ref(rel_path, line_spec)
-
   resolve_agent_and_run(function(agent)
+    local ref = format_file_ref(agent.agent, rel_path, line_spec)
     herdr.send_text(agent.pane_id, ref)
   end)
 end
@@ -92,7 +91,7 @@ function M.send_buffer()
   end
 
   resolve_agent_and_run(function(agent)
-    herdr.send_text(agent.pane_id, format_file_ref(rel_path))
+    herdr.send_text(agent.pane_id, format_file_ref(agent.agent, rel_path))
   end)
 end
 
