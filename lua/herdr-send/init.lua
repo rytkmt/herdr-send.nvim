@@ -68,8 +68,18 @@ function M.send_selection()
     return
   end
 
-  local start_line = vim.fn.getpos("'<")[2]
-  local end_line = vim.fn.getpos("'>")[2]
+  local mode = vim.fn.mode()
+  local start_line, end_line
+  if mode:match("[vV\22]") then
+    start_line = vim.fn.getpos("v")[2]
+    end_line = vim.fn.getpos(".")[2]
+  else
+    start_line = vim.fn.getpos("'<")[2]
+    end_line = vim.fn.getpos("'>")[2]
+  end
+  if start_line > end_line then
+    start_line, end_line = end_line, start_line
+  end
 
   local line_spec
   if start_line == end_line then
