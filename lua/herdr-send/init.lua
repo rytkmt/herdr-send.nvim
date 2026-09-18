@@ -29,31 +29,93 @@ local function format_file_ref(agent_name, rel_path, line_spec)
   return prefix .. rel_path
 end
 
+local function agent_label(agent)
+  local name = agent.terminal_title_stripped or agent.terminal_title or agent.pane_id
+  return name .. " (" .. agent.pane_id .. ")"
+end
+
+local function notify_sent(agent, what)
+  vim.notify("[herdr-send] Sent " .. what .. " to " .. agent_label(agent), vim.log.levels.INFO)
+end
+
+local function pick_agent(agents, prompt, send_fn)
+  if #agents == 1 then
+    send_fn(agents[1])
+    return
+  end
+
+  vim.ui.select(agents, {
+    prompt = prompt,
+    format_item = function(agent)
+      return (agent.terminal_title_stripped or agent.pane_id) .. " [" .. (agent.agent_status or "unknown") .. "]"
+    end,
+  }, function(selected)
+    if selected then
+      send_fn(selected)
+    end
+  end)
+end
+
+local function start_agent_and_send(send_fn)
+  vim.notify("[herdr-send] Starting agent...", vim.log.levels.INFO)
+  herdr.start_agent(config.options, function(agent)
+    vim.schedule(function()
+      send_fn(agent)
+    end)
+  end)
+end
+
 local function resolve_agent_and_run(send_fn)
   herdr.get_workspace_agents(function(agents)
     vim.schedule(function()
+      -- No agent in the same workspace: auto-start in this tab.
       if #agents == 0 then
-        vim.notify("[herdr-send] Starting agent...", vim.log.levels.INFO)
-        herdr.start_agent(config.options, function(agent)
-          vim.schedule(function()
-            send_fn(agent)
-          end)
-        end)
+        start_agent_and_send(send_fn)
         return
       end
 
-      if #agents == 1 then
-        send_fn(agents[1])
+      local my_tab_id = vim.env.HERDR_TAB_ID
+      local same_tab = {}
+      local other_tab = {}
+      for _, agent in ipairs(agents) do
+        if my_tab_id and agent.tab_id == my_tab_id then
+          table.insert(same_tab, agent)
+        else
+          table.insert(other_tab, agent)
+        end
+      end
+
+      -- Agent(s) exist in the current tab: send there.
+      if #same_tab > 0 then
+        pick_agent(same_tab, "Select agent:", send_fn)
         return
       end
 
-      vim.ui.select(agents, {
-        prompt = "Select agent:",
-        format_item = function(agent)
-          return (agent.terminal_title_stripped or agent.pane_id) .. " [" .. (agent.agent_status or "unknown") .. "]"
+      -- Only other-tab agents: let the user choose to start a new one here
+      -- or send to one of the other-tab agents.
+      local START_HERE = { __start_here = true }
+      local choices = { START_HERE }
+      for _, agent in ipairs(other_tab) do
+        table.insert(choices, agent)
+      end
+
+      vim.ui.select(choices, {
+        prompt = "No agent in this tab. Choose:",
+        format_item = function(choice)
+          if choice.__start_here then
+            return "[Start new agent in this tab]"
+          end
+          return "→ "
+            .. (choice.terminal_title_stripped or choice.pane_id)
+            .. " [" .. (choice.agent_status or "unknown") .. "]"
         end,
       }, function(selected)
-        if selected then
+        if not selected then
+          return
+        end
+        if selected.__start_here then
+          start_agent_and_send(send_fn)
+        else
           send_fn(selected)
         end
       end)
@@ -89,7 +151,13 @@ function M.send_selection()
   end
   resolve_agent_and_run(function(agent)
     local ref = format_file_ref(agent.agent, rel_path, line_spec)
-    herdr.send_text(agent.pane_id, ref)
+    herdr.send_text(agent.pane_id, ref, function(exit_code)
+      if exit_code == 0 then
+        vim.schedule(function()
+          notify_sent(agent, ref)
+        end)
+      end
+    end)
   end)
 end
 
@@ -101,7 +169,14 @@ function M.send_buffer()
   end
 
   resolve_agent_and_run(function(agent)
-    herdr.send_text(agent.pane_id, format_file_ref(agent.agent, rel_path))
+    local ref = format_file_ref(agent.agent, rel_path)
+    herdr.send_text(agent.pane_id, ref, function(exit_code)
+      if exit_code == 0 then
+        vim.schedule(function()
+          notify_sent(agent, ref)
+        end)
+      end
+    end)
   end)
 end
 
@@ -111,7 +186,13 @@ function M.send_prompt()
       return
     end
     resolve_agent_and_run(function(agent)
-      herdr.submit_prompt(agent.pane_id, input)
+      herdr.submit_prompt(agent.pane_id, input, function(exit_code)
+        if exit_code == 0 then
+          vim.schedule(function()
+            notify_sent(agent, "prompt")
+          end)
+        end
+      end)
     end)
   end)
 end
