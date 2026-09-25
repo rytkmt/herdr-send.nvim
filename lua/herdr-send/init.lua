@@ -18,7 +18,10 @@ end
 local at_prefix_agents = { claude = true, gemini = true }
 
 local function format_file_ref(agent_name, file_path, line_spec)
-  local prefix = at_prefix_agents[agent_name] and "@" or ""
+  -- Absolute paths start with "/", which some agents (e.g. Kiro) may
+  -- mistake for a slash command. Always prefix "@" for absolute paths.
+  local is_absolute = file_path:sub(1, 1) == "/"
+  local prefix = (is_absolute or at_prefix_agents[agent_name]) and "@" or ""
   if line_spec then
     return prefix .. file_path .. "#L" .. line_spec
   end
