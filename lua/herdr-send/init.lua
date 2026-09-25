@@ -7,26 +7,22 @@ function M.setup(opts)
   config.setup(opts)
 end
 
-local function get_relative_path()
+local function get_absolute_path()
   local filepath = vim.fn.expand("%:p")
   if filepath == "" then
     return nil
-  end
-  local cwd = vim.fn.getcwd()
-  if filepath:sub(1, #cwd) == cwd then
-    return filepath:sub(#cwd + 2)
   end
   return filepath
 end
 
 local at_prefix_agents = { claude = true, gemini = true }
 
-local function format_file_ref(agent_name, rel_path, line_spec)
+local function format_file_ref(agent_name, file_path, line_spec)
   local prefix = at_prefix_agents[agent_name] and "@" or ""
   if line_spec then
-    return prefix .. rel_path .. "#L" .. line_spec
+    return prefix .. file_path .. "#L" .. line_spec
   end
-  return prefix .. rel_path
+  return prefix .. file_path
 end
 
 local function agent_label(agent)
@@ -124,8 +120,8 @@ local function resolve_agent_and_run(send_fn)
 end
 
 function M.send_selection()
-  local rel_path = get_relative_path()
-  if not rel_path then
+  local abs_path = get_absolute_path()
+  if not abs_path then
     vim.notify("[herdr-send] No file", vim.log.levels.WARN)
     return
   end
@@ -150,7 +146,7 @@ function M.send_selection()
     line_spec = start_line .. "-" .. end_line
   end
   resolve_agent_and_run(function(agent)
-    local ref = format_file_ref(agent.agent, rel_path, line_spec)
+    local ref = format_file_ref(agent.agent, abs_path, line_spec)
     herdr.send_text(agent.pane_id, ref, function(exit_code)
       if exit_code == 0 then
         vim.schedule(function()
@@ -162,14 +158,14 @@ function M.send_selection()
 end
 
 function M.send_buffer()
-  local rel_path = get_relative_path()
-  if not rel_path then
+  local abs_path = get_absolute_path()
+  if not abs_path then
     vim.notify("[herdr-send] No file", vim.log.levels.WARN)
     return
   end
 
   resolve_agent_and_run(function(agent)
-    local ref = format_file_ref(agent.agent, rel_path)
+    local ref = format_file_ref(agent.agent, abs_path)
     herdr.send_text(agent.pane_id, ref, function(exit_code)
       if exit_code == 0 then
         vim.schedule(function()
