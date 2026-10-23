@@ -100,12 +100,47 @@ function M.start_agent(opts, callback)
 
       local new_pane_id = parsed.result.pane.pane_id
 
-      vim.fn.jobstart({ "herdr", "agent", "start", opts.agent_cmd, "--kind", opts.agent_cmd, "--pane", new_pane_id }, {
+      -- The agent NAME must be unique across workspaces, otherwise herdr
+      -- rejects the start with "agent_name_taken". Scope it to the current
+      -- workspace to avoid clashing with agents of the same kind elsewhere.
+      -- NAME must be 1-32 chars, start with a lowercase letter and contain
+      -- only lowercase letters, digits, '-' or '_', so sanitize it.
+      local workspace_id = vim.env.HERDR_WORKSPACE_ID
+      local agent_name = opts.agent_cmd
+      if workspace_id and workspace_id ~= "" then
+        agent_name = opts.agent_cmd .. "-" .. workspace_id
+      end
+      agent_name = agent_name:lower():gsub("[^a-z0-9_-]", "-"):sub(1, 32)
+
+      local start_args = {
+        "herdr", "agent", "start", agent_name,
+        "--kind", opts.agent_cmd,
+        "--pane", new_pane_id,
+      }
+
+      local start_output = {}
+      vim.fn.jobstart(start_args, {
+        stdout_buffered = true,
+        on_stdout = function(_, start_data)
+          start_output[#start_output + 1] = table.concat(start_data, "")
+        end,
         on_exit = function(_, start_exit_code)
+          local output = table.concat(start_output, "")
+
+          -- herdr may report failures as a JSON error on stdout even when the
+          -- process exit code is 0, so inspect both.
+          local decoded_ok, decoded = pcall(vim.json.decode, output)
+          if decoded_ok and decoded and decoded.error then
+            local msg = decoded.error.message or decoded.error.code or "unknown error"
+            vim.notify("[herdr-send] Failed to start agent: " .. msg, vim.log.levels.ERROR)
+            return
+          end
+
           if start_exit_code ~= 0 then
             vim.notify("[herdr-send] Failed to start agent (exit code: " .. start_exit_code .. ")", vim.log.levels.ERROR)
             return
           end
+
           callback({ pane_id = new_pane_id, agent = opts.agent_cmd })
         end,
       })
